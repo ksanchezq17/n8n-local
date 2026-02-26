@@ -4,3 +4,11 @@
 
 # LangGraph
 .langgraph_api/
+
+# Docker local env
+docker/.env
+
+# Local persisted data (keep folder placeholders)
+data/**
+!data/.gitkeep
+!data/*/.gitkeep

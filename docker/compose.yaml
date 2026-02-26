@@ -1,0 +1,61 @@
+name: n8n-local
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - WEBHOOK_URL=${N8N_PROTOCOL:-http}://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - ../data/n8n:/home/node/.n8n
+    depends_on: []
+
+  ollama:
+    image: ollama/ollama:rocm
+    container_name: ollama
+    restart: unless-stopped
+    # AMD Radeon (ROCm). Requires a Linux host/VM with ROCm-capable kernel drivers.
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
+    environment:
+      # Optional: set in docker/.env if your ROCm stack needs an override for RX 7900 (gfx1100)
+      - HSA_OVERRIDE_GFX_VERSION=${OLLAMA_HSA_OVERRIDE_GFX_VERSION:-}
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ../data/ollama:/root/.ollama
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    restart: unless-stopped
+    gpus: all
+    ports:
+      - "${VLLM_PORT:-8000}:8000"
+    volumes:
+      - ../data/hf-cache:/root/.cache/huggingface
+    environment:
+      - HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface
+    command:
+      - "--model"
+      - "${VLLM_MODEL:-meta-llama/Llama-3.1-8B-Instruct}"
+      - "--dtype"
+      - "${VLLM_DTYPE:-auto}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+
