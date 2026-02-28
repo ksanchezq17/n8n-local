@@ -3,21 +3,34 @@ name: n8n-local
 services:
   n8n:
     image: n8nio/n8n:latest
-    container_name: n8n
-    restart: unless-stopped
-    ports:
-      - "${N8N_PORT:-5678}:5678"
+    # build:
+    #   context: ../
+    #   dockerfile: docker/docker-images/n8n-dockerfile
+    container_name: n8n-main
     environment:
-      - N8N_HOST=${N8N_HOST:-localhost}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
-      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      - WEBHOOK_URL=${N8N_PROTOCOL:-http}://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/
-      - GENERIC_TIMEZONE=UTC
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
+      - N8N_RUNNERS_AUTH_TOKEN=your-secret-here
+      - N8N_NATIVE_PYTHON_RUNNER=true
+    ports:
+      - "5678:5678"
     volumes:
       - ../data/n8n:/home/node/.n8n
-    depends_on: []
+    # etc.
+
+  task-runners:
+    # image: n8nio/runners:latest
+    build:
+      context: ../
+      dockerfile: docker/docker-images/runners-dockerfile
+    container_name: n8n-runners
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-main:5679
+      - N8N_RUNNERS_AUTH_TOKEN=your-secret-here
+      # etc.
+    depends_on:
+      - n8n
 
   ollama:
     image: ollama/ollama:rocm
@@ -25,14 +38,15 @@ services:
     restart: unless-stopped
     # AMD Radeon (ROCm). Requires a Linux host/VM with ROCm-capable kernel drivers.
     devices:
-      - /dev/kfd
-      - /dev/dri
+      - /dev/dxg:/dev/dxg
     group_add:
-      - video
-      - render
+      - 44
+      - 992
     environment:
       # Optional: set in docker/.env if your ROCm stack needs an override for RX 7900 (gfx1100)
       - HSA_OVERRIDE_GFX_VERSION=${OLLAMA_HSA_OVERRIDE_GFX_VERSION:-}
+      - LD_LIBRARY_PATH=/usr/lib/wsl/lib #:/usr/lib/wsl/lib/x86_64-linux-gnu
+
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:

@@ -1,0 +1,4 @@
+FROM n8nio/n8n:latest
+USER root
+RUN cd /opt/runners/task-runner-python && uv pip  youtube-transcript-api
+USER node
